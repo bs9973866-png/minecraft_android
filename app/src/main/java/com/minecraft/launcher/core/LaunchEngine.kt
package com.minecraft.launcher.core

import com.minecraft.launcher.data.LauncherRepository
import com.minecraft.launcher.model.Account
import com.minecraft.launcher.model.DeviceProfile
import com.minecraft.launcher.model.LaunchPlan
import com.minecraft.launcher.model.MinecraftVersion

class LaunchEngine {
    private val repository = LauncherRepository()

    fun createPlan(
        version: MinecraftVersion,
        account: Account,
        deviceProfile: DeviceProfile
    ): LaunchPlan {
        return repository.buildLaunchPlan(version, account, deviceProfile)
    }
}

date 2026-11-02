@@ -16,28 +16,28 @@ class LauncherRepository {
             label = "1.20.4",
             type = "Java",
             recommended = true,
-            description = "Stable profile with the widest mod support and good performance on mobile devices."
+            description = "Stable profile with the widest mod support and strong mobile performance."
         ),
         MinecraftVersion(
             id = "1.19.2",
             label = "1.19.2",
             type = "Forge",
             recommended = false,
-            description = "Classic compatibility build for old and heavily modded setups."
+            description = "Classic compatibility build for older modded setups."
         ),
         MinecraftVersion(
             id = "1.21.1",
             label = "1.21.1",
             type = "Fabric",
             recommended = false,
-            description = "Modern optimized build with lightweight modded gameplay."
+            description = "Modern lightweight build with optimized gameplay."
         ),
         MinecraftVersion(
             id = "1.16.5",
             label = "1.16.5",
             type = "NeoForge",
             recommended = false,
-            description = "Legacy build for older devices and community packs."
+            description = "Legacy support for older devices and community packs."
         )
     )
 
@@ -62,7 +62,7 @@ class LauncherRepository {
             name = "Create Immersive",
             version = "1.19.2",
             compatibility = "Forge",
-            description = "Creative automation pack with strong community support.",
+            description = "Creative automation pack with strong support.",
             downloads = 190000
         ),
         Modpack(
@@ -78,12 +78,13 @@ class LauncherRepository {
             name = "NeoForge Arcade",
             version = "1.16.5",
             compatibility = "NeoForge",
-            description = "Optimized for older devices and lightweight mod packs.",
+            description = "Optimized for older devices and lightweight packs.",
             downloads = 62000
         )
     )
 
-    fun getModpacksForVersion(versionId: String): List<Modpack> = getModpacks().filter { it.version == versionId }
+    fun getModpacksForVersion(versionId: String): List<Modpack> =
+        getModpacks().filter { it.version == versionId }
 
     fun getDeviceProfiles(): List<DeviceProfile> = listOf(
         DeviceProfile(
@@ -115,7 +116,7 @@ class LauncherRepository {
         deviceProfile: DeviceProfile
     ): LaunchPlan {
         val generator = LaunchProfileGenerator()
-        val auto = getModpacksForVersion(version.id)
+        val autoInstalled = getModpacksForVersion(version.id)
             .map { it.name }
             .ifEmpty { generator.recommendedModpackNames(version.id) }
 
@@ -123,7 +124,7 @@ class LauncherRepository {
             version = version,
             account = account,
             deviceProfile = deviceProfile,
-            autoInstalledModpacks = auto,
+            autoInstalledModpacks = autoInstalled,
             renderQuality = deviceProfile.renderQuality,
             memoryLimitMb = deviceProfile.memoryLimitMb,
             recommendedJavaArgs = generator.buildJvmArgs(deviceProfile),

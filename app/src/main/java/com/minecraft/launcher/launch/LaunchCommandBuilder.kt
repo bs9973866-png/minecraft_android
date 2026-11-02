@@ -12,7 +12,8 @@ class LaunchCommandBuilder {
         modpackNames: List<String>
     ): String {
         val safeAccount = if (account.username.isBlank()) "offline" else account.username
-        val safeMods = if (modpackNames.isEmpty()) "Vanilla" else modpackNames.joinToString(",") { it.replace(" ", "_") }
+        val mods = if (modpackNames.isEmpty()) listOf("Vanilla") else modpackNames
+        val safeMods = mods.joinToString(",") { it.replace(" ", "_") }
 
         return buildString {
             append("sh -c 'java ")
