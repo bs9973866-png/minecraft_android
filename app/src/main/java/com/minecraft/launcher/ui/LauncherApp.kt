@@ -1,6 +1,7 @@
 package com.minecraft.launcher.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,9 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -36,9 +35,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.minecraft.launcher.data.LauncherRepository
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.minecraft.launcher.model.Account
 import com.minecraft.launcher.model.DeviceProfile
+import com.minecraft.launcher.model.LaunchPlan
 import com.minecraft.launcher.model.MinecraftVersion
 import com.minecraft.launcher.model.Modpack
 
@@ -50,21 +50,11 @@ private enum class LauncherTab(val title: String) {
 }
 
 @Composable
-fun LauncherApp() {
-    val repository = LauncherRepository()
-    val versions = repository.getVersions()
-    val accounts = repository.getAccounts()
-    val modpacks = repository.getModpacks()
-    val profiles = repository.getDeviceProfiles()
-
-    val defaultVersion = versions.first { it.recommended }
-    val defaultAccount = accounts.first { it.isActive }
-    val defaultProfile = profiles.first()
-
+fun LauncherApp(viewModel: LauncherViewModel = viewModel()) {
+    val state = viewModel.state
     var selectedTab by remember { mutableStateOf(LauncherTab.VERSIONS) }
-    var selectedVersion by remember { mutableStateOf(defaultVersion) }
-    var selectedProfile by remember { mutableStateOf(defaultProfile) }
-    var selectedAccount by remember { mutableStateOf(defaultAccount) }
+    var launchStatus by remember { mutableStateOf("Ready") }
+    var launchCommand by remember { mutableStateOf(viewModel.activeLaunchConfig.commandLine) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -98,29 +88,62 @@ fun LauncherApp() {
                 .padding(16.dp)
         ) {
             HeaderCard(
-                selectedVersion = selectedVersion,
-                activeAccount = selectedAccount,
-                deviceProfile = selectedProfile
+                selectedVersion = state.selectedVersion,
+                activeAccount = viewModel.activeAccount,
+                deviceProfile = viewModel.activeProfile,
+                launchPlan = viewModel.launchPlan,
+                launchStatus = launchStatus,
+                onLaunch = {
+                    val result = viewModel.launchMinecraft()
+                    launchStatus = if (result.success) {
+                        "Minecraft launched successfully"
+                    } else {
+                        result.message
+                    }
+                    launchCommand = result.command
+                }
             )
 
             when (selectedTab) {
                 LauncherTab.VERSIONS -> VersionsScreen(
-                    versions = versions,
-                    selectedVersion = selectedVersion,
-                    onSelectVersion = { selectedVersion = it },
-                    modpacks = modpacks
+                    versions = state.versions,
+                    selectedVersion = state.selectedVersion,
+                    onSelectVersion = viewModel::selectVersion,
+                    modpacks = state.modpacks
                 )
                 LauncherTab.ACCOUNTS -> AccountsScreen(
-                    accounts = accounts,
-                    selectedAccount = selectedAccount,
-                    onSelectAccount = { selectedAccount = it }
+                    accounts = state.accounts,
+                    selectedAccount = viewModel.activeAccount,
+                    onSelectAccount = viewModel::selectAccount
                 )
-                LauncherTab.MODS -> ModsScreen(modpacks = modpacks)
+                LauncherTab.MODS -> ModsScreen(modpacks = state.modpacks)
                 LauncherTab.SETTINGS -> SettingsScreen(
-                    profiles = profiles,
-                    selectedProfile = selectedProfile,
-                    onSelectProfile = { selectedProfile = it }
+                    profiles = state.deviceProfiles,
+                    selectedProfile = viewModel.activeProfile,
+                    onSelectProfile = viewModel::selectDeviceProfile
                 )
+            }
+
+            if (launchCommand.isNotBlank()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Launch command",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = launchCommand,
+                            modifier = Modifier.padding(top = 8.dp),
+                            color = Color(0xFF9AD0FF)
+                        )
+                    }
+                }
             }
         }
     }
@@ -130,7 +153,10 @@ fun LauncherApp() {
 private fun HeaderCard(
     selectedVersion: MinecraftVersion,
     activeAccount: Account,
-    deviceProfile: DeviceProfile
+    deviceProfile: DeviceProfile,
+    launchPlan: LaunchPlan,
+    launchStatus: String,
+    onLaunch: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -140,7 +166,7 @@ private fun HeaderCard(
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "Minecraft launcher",
+                text = "BlockForge Mobile",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -158,12 +184,21 @@ private fun HeaderCard(
                 Text(text = "Account: ${activeAccount.username}")
                 Text(text = "Profile: ${deviceProfile.name}")
             }
+            Text(
+                text = "Memory: ${launchPlan.memoryLimitMb} MB · Render: ${launchPlan.renderQuality}",
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            Text(
+                text = "Status: $launchStatus",
+                modifier = Modifier.padding(top = 6.dp),
+                color = Color(0xFF7CFFB2)
+            )
             Button(
-                onClick = { },
+                onClick = onLaunch,
                 modifier = Modifier.padding(top = 16.dp)
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Text(text = "Launch", modifier = Modifier.padding(start = 8.dp))
+                Text(text = "Launch Minecraft", modifier = Modifier.padding(start = 8.dp))
             }
         }
     }
@@ -187,7 +222,9 @@ private fun VersionsScreen(
         items(versions) { version ->
             val selected = selectedVersion.id == version.id
             Card(
-                onClick = { onSelectVersion(version) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectVersion(version) },
                 colors = CardDefaults.cardColors(
                     containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                     else MaterialTheme.colorScheme.surface
@@ -210,9 +247,7 @@ private fun VersionsScreen(
             }
         }
 
-        item {
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-        }
+        item { Divider(modifier = Modifier.padding(vertical = 8.dp)) }
 
         item {
             Text(
@@ -245,7 +280,9 @@ private fun AccountsScreen(
         items(accounts) { account ->
             val selected = selectedAccount.id == account.id
             Card(
-                onClick = { onSelectAccount(account) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectAccount(account) },
                 colors = CardDefaults.cardColors(
                     containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                     else MaterialTheme.colorScheme.surface
@@ -302,7 +339,9 @@ private fun SettingsScreen(
         items(profiles) { profile ->
             val selected = selectedProfile.id == profile.id
             Card(
-                onClick = { onSelectProfile(profile) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectProfile(profile) },
                 colors = CardDefaults.cardColors(
                     containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                     else MaterialTheme.colorScheme.surface
@@ -321,7 +360,10 @@ private fun SettingsScreen(
 
 @Composable
 private fun ModpackItem(modpack: Modpack) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

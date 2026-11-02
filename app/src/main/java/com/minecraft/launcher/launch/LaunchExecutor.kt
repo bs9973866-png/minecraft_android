@@ -10,7 +10,27 @@ data class LaunchExecutionResult(
 
 class LaunchExecutor {
     fun execute(config: LaunchConfig): LaunchExecutionResult {
+        if (!config.safeToLaunch) {
+            return LaunchExecutionResult(
+                success = false,
+                message = "Launch is blocked: account status or version is not safe to launch.",
+                command = config.commandLine
+            )
+        }
+
         return try {
+            val javaCheck = ProcessBuilder("sh", "-c", "command -v java").redirectErrorStream(true).start()
+            val javaOutput = javaCheck.inputStream.bufferedReader().readText()
+            val javaExit = javaCheck.waitFor()
+
+            if (javaExit != 0 || javaOutput.isBlank()) {
+                return LaunchExecutionResult(
+                    success = false,
+                    message = "Java runtime is not installed or not available on this device.",
+                    command = config.commandLine
+                )
+            }
+
             val process = ProcessBuilder()
                 .command("sh", "-c", config.commandLine)
                 .redirectErrorStream(true)
@@ -22,20 +42,20 @@ class LaunchExecutor {
             if (exitCode == 0) {
                 LaunchExecutionResult(
                     success = true,
-                    message = output.ifBlank { "Java runtime started successfully." },
+                    message = output.ifBlank { "Minecraft launched successfully." },
                     command = config.commandLine
                 )
             } else {
                 LaunchExecutionResult(
                     success = false,
-                    message = output.ifBlank { "Java runtime exited with code $exitCode." },
+                    message = output.ifBlank { "Minecraft exited with code $exitCode." },
                     command = config.commandLine
                 )
             }
         } catch (e: Exception) {
             LaunchExecutionResult(
                 success = false,
-                message = "Unable to run Java on this device: ${e.message ?: "unknown error"}",
+                message = "Unable to launch Minecraft on this device: ${e.message ?: "unknown error"}",
                 command = config.commandLine
             )
         }
