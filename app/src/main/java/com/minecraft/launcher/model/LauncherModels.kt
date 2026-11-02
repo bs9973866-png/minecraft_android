@@ -31,13 +31,24 @@ data class DeviceProfile(
     val name: String,
     val memoryLimitMb: Int,
     val renderQuality: String,
-    val recommendedJavaArgs: String
+    val recommendedJavaArgs: String,
+    val description: String = ""
+)
+
+data class LaunchConfig(
+    val version: MinecraftVersion,
+    val account: Account,
+    val deviceProfile: DeviceProfile,
+    val javaArgs: String,
+    val modpackNames: List<String>
 )
 
 data class LauncherUiState(
     val versions: List<MinecraftVersion>,
     val selectedVersion: MinecraftVersion,
     val accounts: List<Account>,
+    val selectedAccountId: String,
     val modpacks: List<Modpack>,
-    val deviceProfiles: List<DeviceProfile>
+    val deviceProfiles: List<DeviceProfile>,
+    val selectedDeviceProfileId: String
 )

@@ -1,52 +1,340 @@
-# Minecraft Android Launcher Prototype
+package com.minecraft.launcher.ui
 
-This repository contains an Android launcher prototype for managing Java Minecraft installs on Android devices. The project is meant to be a strong foundation for a custom launcher UI, profile handling, modpack recommendations, and device-specific performance tuning.
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.minecraft.launcher.model.Account
+import com.minecraft.launcher.model.DeviceProfile
+import com.minecraft.launcher.model.MinecraftVersion
+import com.minecraft.launcher.model.Modpack
 
-## Current features
+private enum class LauncherTab(val title: String) {
+    VERSIONS("Versions"),
+    ACCOUNTS("Accounts"),
+    MODS("Mods"),
+    SETTINGS("Settings")
+}
 
-- version picker for Java-capable Minecraft builds
-- account cards for Ely.by-style login and offline profiles
-- modpack recommendations tied to selected version
-- optimization profiles for weak / mid / high-end phones
-- Material 3 launcher interface with tabs for versions, accounts, mods, and settings
+@Composable
+fun LauncherApp(viewModel: LauncherViewModel = viewModel()) {
+    val state = viewModel.state
+    var selectedTab by remember { mutableStateOf(LauncherTab.VERSIONS) }
 
-## Key idea
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                LauncherTab.entries.forEach { tab ->
+                    NavigationBarItem(
+                        selected = selectedTab == tab,
+                        onClick = { selectedTab = tab },
+                        icon = {
+                            val icon = when (tab) {
+                                LauncherTab.VERSIONS -> Icons.Default.PlayArrow
+                                LauncherTab.ACCOUNTS -> Icons.Default.AccountCircle
+                                LauncherTab.MODS -> Icons.Default.CloudDownload
+                                LauncherTab.SETTINGS -> Icons.Default.Settings
+                            }
+                            Icon(icon, contentDescription = tab.title)
+                        },
+                        label = { Text(tab.title) }
+                    )
+                }
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+            HeaderCard(
+                selectedVersion = state.selectedVersion,
+                activeAccount = state.accounts.first { it.id == state.selectedAccountId },
+                deviceProfile = state.deviceProfiles.first { it.id == state.selectedDeviceProfileId }
+            )
 
-The app focuses on a launcher experience rather than a game client itself. It is designed to evolve toward:
+            when (selectedTab) {
+                LauncherTab.VERSIONS -> VersionsScreen(
+                    versions = state.versions,
+                    selectedVersion = state.selectedVersion,
+                    onSelectVersion = viewModel::selectVersion,
+                    modpacks = state.modpacks
+                )
+                LauncherTab.ACCOUNTS -> AccountsScreen(
+                    accounts = state.accounts,
+                    selectedAccountId = state.selectedAccountId,
+                    onSelectAccount = viewModel::selectAccount
+                )
+                LauncherTab.MODS -> ModsScreen(modpacks = state.modpacks)
+                LauncherTab.SETTINGS -> SettingsScreen(
+                    profiles = state.deviceProfiles,
+                    selectedProfileId = state.selectedDeviceProfileId,
+                    onSelectProfile = viewModel::selectDeviceProfile
+                )
+            }
+        }
+    }
+}
 
-- version downloads and installs
-- mod loader detection (Fabric / Forge / NeoForge)
-- automatic modpack resolution and compatibility checks
-- Java runtime and memory tuning per device
-- launch configuration based on phone hardware
+@Composable
+private fun HeaderCard(
+    selectedVersion: MinecraftVersion,
+    activeAccount: Account,
+    deviceProfile: DeviceProfile
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Minecraft launcher",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Version ${selectedVersion.label} · ${selectedVersion.type}",
+                color = Color(0xFF9AD0FF),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Account: ${activeAccount.username}")
+                Text(text = "Profile: ${deviceProfile.name}")
+            }
+            Button(
+                onClick = { },
+                modifier = Modifier.padding(top = 16.dp)
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Text(text = "Launch", modifier = Modifier.padding(start = 8.dp))
+            }
+        }
+    }
+}
 
-## Important note
+@Composable
+private fun VersionsScreen(
+    versions: List<MinecraftVersion>,
+    selectedVersion: MinecraftVersion,
+    onSelectVersion: (MinecraftVersion) -> Unit,
+    modpacks: List<Modpack>
+) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Text(
+                text = "Recommended versions",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        items(versions) { version ->
+            val selected = selectedVersion.id == version.id
+            Card(
+                onClick = { onSelectVersion(version) },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    else MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = version.label, fontWeight = FontWeight.Bold)
+                        if (version.recommended) {
+                            Text(text = "Recommended", color = Color(0xFF9AD0FF))
+                        }
+                    }
+                    Text(text = version.type, modifier = Modifier.padding(top = 6.dp))
+                    Text(text = version.description, modifier = Modifier.padding(top = 8.dp))
+                }
+            }
+        }
 
-This is a prototype and not an official Minecraft launcher or a redistribution of game assets. It does not ship game binaries, official client code, or copyrighted content beyond basic UI scaffolding and mock data.
+        item {
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+        }
 
-## Repository structure
+        item {
+            Text(
+                text = "Auto-installed modpacks",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
-- `app/src/main/java/com/minecraft/launcher` — launcher logic and screens
-- `app/src/main/res/values` — strings and theme resources
-- `app/build.gradle.kts` — Android app module setup
-- `README.md` — overview and project notes
+        items(modpacks) { modpack ->
+            ModpackItem(modpack)
+        }
+    }
+}
 
-## Next development areas
+@Composable
+private fun AccountsScreen(
+    accounts: List<Account>,
+    selectedAccountId: String,
+    onSelectAccount: (Account) -> Unit
+) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Text(
+                text = "Accounts",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        items(accounts) { account ->
+            val selected = selectedAccountId == account.id
+            Card(
+                onClick = { onSelectAccount(account) },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    else MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(text = account.username, fontWeight = FontWeight.Bold)
+                        Text(text = account.type, color = Color(0xFF9AD0FF))
+                    }
+                    Text(text = account.status)
+                }
+            }
+        }
+    }
+}
 
-1. Version manifest download and installation logic
-2. Fabric / Forge / NeoForge compatibility engine
-3. Ely.by client auth flow
-4. Auto-install and patching logic for recommended modpacks
-5. Real Java launch command builder with memory/gpu flags
+@Composable
+private fun ModsScreen(modpacks: List<Modpack>) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Text(
+                text = "Recommended mods and modpacks",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        items(modpacks) { modpack ->
+            ModpackItem(modpack)
+        }
+    }
+}
 
-## Build
+@Composable
+private fun SettingsScreen(
+    profiles: List<DeviceProfile>,
+    selectedProfileId: String,
+    onSelectProfile: (DeviceProfile) -> Unit
+) {
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Text(
+                text = "Device optimization",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        items(profiles) { profile ->
+            val selected = selectedProfileId == profile.id
+            Card(
+                onClick = { onSelectProfile(profile) },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    else MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = profile.name, fontWeight = FontWeight.Bold)
+                    Text(text = profile.description, color = Color(0xFF9AD0FF), modifier = Modifier.padding(top = 4.dp))
+                    Text(text = "Memory: ${profile.memoryLimitMb} MB", modifier = Modifier.padding(top = 6.dp))
+                    Text(text = "Render: ${profile.renderQuality}", modifier = Modifier.padding(top = 2.dp))
+                    Text(text = "JVM: ${profile.recommendedJavaArgs}", modifier = Modifier.padding(top = 2.dp))
+                }
+            }
+        }
+    }
+}
 
-Open the project in Android Studio and sync Gradle. Then run the app on an emulator or connected Android device.
-
-## Roadmap
-
-- MVP launcher UI
-- profile and account model
-- modpack recommendation engine
-- device profile optimization
-- real client install and launch pipeline
+@Composable
+private fun ModpackItem(modpack: Modpack) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = modpack.name, fontWeight = FontWeight.Bold)
+                Text(text = modpack.version)
+            }
+            Text(
+                text = modpack.compatibility,
+                color = Color(0xFF9AD0FF),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            Text(text = modpack.description, modifier = Modifier.padding(top = 8.dp))
+            Text(
+                text = "Downloads: ${modpack.downloads}",
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            if (modpack.recommended) {
+                Text(
+                    text = "Auto-selected for your current version",
+                    modifier = Modifier.padding(top = 8.dp),
+                    color = Color(0xFF7CFFB2)
+                )
+            }
+        }
+    }
+}
