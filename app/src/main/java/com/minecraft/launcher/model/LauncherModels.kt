@@ -35,12 +35,15 @@ data class DeviceProfile(
     val description: String = ""
 )
 
-data class LaunchConfig(
+data class LaunchPlan(
     val version: MinecraftVersion,
     val account: Account,
     val deviceProfile: DeviceProfile,
-    val javaArgs: String,
-    val modpackNames: List<String>
+    val autoInstalledModpacks: List<String>,
+    val renderQuality: String,
+    val memoryLimitMb: Int,
+    val recommendedJavaArgs: String,
+    val safeToLaunch: Boolean = true
 )
 
 data class LauncherUiState(
