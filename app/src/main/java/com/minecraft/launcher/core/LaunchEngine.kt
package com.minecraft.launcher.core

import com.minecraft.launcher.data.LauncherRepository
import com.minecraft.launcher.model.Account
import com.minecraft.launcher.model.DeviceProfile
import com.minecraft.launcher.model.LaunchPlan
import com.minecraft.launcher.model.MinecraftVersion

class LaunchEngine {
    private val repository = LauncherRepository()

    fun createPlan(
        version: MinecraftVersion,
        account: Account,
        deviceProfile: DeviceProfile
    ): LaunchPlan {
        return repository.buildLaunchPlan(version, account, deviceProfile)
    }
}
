@@ -1,0 +1,158 @@
+package com.minecraft.launcher.data
+
+import com.minecraft.launcher.core.LaunchProfileGenerator
+import com.minecraft.launcher.launch.LaunchCommandBuilder
+import com.minecraft.launcher.model.Account
+import com.minecraft.launcher.model.DeviceProfile
+import com.minecraft.launcher.model.LaunchConfig
+import com.minecraft.launcher.model.LaunchPlan
+import com.minecraft.launcher.model.MinecraftVersion
+import com.minecraft.launcher.model.Modpack
+
+class LauncherRepository {
+    fun getVersions(): List<MinecraftVersion> = listOf(
+        MinecraftVersion(
+            id = "1.20.4",
+            label = "1.20.4",
+            type = "Java",
+            recommended = true,
+            description = "Stable profile with the widest mod support and good performance on mobile devices."
+        ),
+        MinecraftVersion(
+            id = "1.19.2",
+            label = "1.19.2",
+            type = "Forge",
+            recommended = false,
+            description = "Classic compatibility build for old and heavily modded setups."
+        ),
+        MinecraftVersion(
+            id = "1.21.1",
+            label = "1.21.1",
+            type = "Fabric",
+            recommended = false,
+            description = "Modern optimized build with lightweight modded gameplay."
+        ),
+        MinecraftVersion(
+            id = "1.16.5",
+            label = "1.16.5",
+            type = "NeoForge",
+            recommended = false,
+            description = "Legacy build for older devices and community packs."
+        )
+    )
+
+    fun getAccounts(): List<Account> = listOf(
+        Account("ely", "Ely.by", "Ely.by", "Synced", true),
+        Account("offline", "Offline", "Offline", "Ready", false),
+        Account("alt1", "Alt_1", "Premium", "Queued", false)
+    )
+
+    fun getModpacks(): List<Modpack> = listOf(
+        Modpack(
+            id = "fabulously-optimized",
+            name = "Fabulously Optimized",
+            version = "1.20.4",
+            compatibility = "Fabric",
+            description = "High FPS and smooth performance for mid-range phones.",
+            downloads = 420000,
+            recommended = true
+        ),
+        Modpack(
+            id = "create-immersive",
+            name = "Create Immersive",
+            version = "1.19.2",
+            compatibility = "Forge",
+            description = "Creative automation pack with strong community support.",
+            downloads = 190000
+        ),
+        Modpack(
+            id = "rift-essentials",
+            name = "Rift Essentials",
+            version = "1.21.1",
+            compatibility = "Fabric",
+            description = "Performance-first pack with QoL improvements.",
+            downloads = 94000
+        ),
+        Modpack(
+            id = "neoforge-arcade",
+            name = "NeoForge Arcade",
+            version = "1.16.5",
+            compatibility = "NeoForge",
+            description = "Optimized for older devices and lightweight mod packs.",
+            downloads = 62000
+        )
+    )
+
+    fun getModpacksForVersion(versionId: String): List<Modpack> = getModpacks().filter { it.version == versionId }
+
+    fun getDeviceProfiles(): List<DeviceProfile> = listOf(
+        DeviceProfile(
+            id = "low",
+            name = "Low-End",
+            memoryLimitMb = 2048,
+            renderQuality = "Balanced",
+            recommendedJavaArgs = "-Xms512M -Xmx1536M -XX:+UseG1GC -Djava.awt.headless=true"
+        ),
+        DeviceProfile(
+            id = "mid",
+            name = "Mid-Range",
+            memoryLimitMb = 4096,
+            renderQuality = "Ultra",
+            recommendedJavaArgs = "-Xms1024M -Xmx3072M -XX:+UseG1GC -Djava.awt.headless=true"
+        ),
+        DeviceProfile(
+            id = "high",
+            name = "High-End",
+            memoryLimitMb = 8192,
+            renderQuality = "Extreme",
+            recommendedJavaArgs = "-Xms2048M -Xmx6144M -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -Djava.awt.headless=true"
+        )
+    )
+
+    fun buildLaunchPlan(
+        version: MinecraftVersion,
+        account: Account,
+        deviceProfile: DeviceProfile
+    ): LaunchPlan {
+        val generator = LaunchProfileGenerator()
+        val auto = getModpacksForVersion(version.id)
+            .map { it.name }
+            .ifEmpty { generator.recommendedModpackNames(version.id) }
+
+        return LaunchPlan(
+            version = version,
+            account = account,
+            deviceProfile = deviceProfile,
+            autoInstalledModpacks = auto,
+            renderQuality = deviceProfile.renderQuality,
+            memoryLimitMb = deviceProfile.memoryLimitMb,
+            recommendedJavaArgs = generator.buildJvmArgs(deviceProfile),
+            safeToLaunch = account.status != "Queued" && account.username.isNotBlank()
+        )
+    }
+
+    fun buildLaunchConfig(
+        version: MinecraftVersion,
+        account: Account,
+        deviceProfile: DeviceProfile
+    ): LaunchConfig {
+        val plan = buildLaunchPlan(version, account, deviceProfile)
+        val command = LaunchCommandBuilder().buildCommand(
+            version = version,
+            account = account,
+            profile = deviceProfile,
+            modpackNames = plan.autoInstalledModpacks
+        )
+
+        return LaunchConfig(
+            version = version,
+            account = account,
+            deviceProfile = deviceProfile,
+            modpackNames = plan.autoInstalledModpacks,
+            javaCommand = "java",
+            jvmArgs = plan.recommendedJavaArgs,
+            commandLine = command,
+            safeToLaunch = plan.safeToLaunch
+        )
+    }
+}

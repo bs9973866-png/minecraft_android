@@ -12,12 +12,12 @@ class LaunchCommandBuilder {
         modpackNames: List<String>
     ): String {
         val safeAccount = if (account.username.isBlank()) "offline" else account.username
-        val modsSuffix = if (modpackNames.isEmpty()) "vanilla" else modpackNames.joinToString(",")
+        val safeMods = if (modpackNames.isEmpty()) "Vanilla" else modpackNames.joinToString(",") { it.replace(" ", "_") }
 
         return buildString {
-            append("java ")
+            append("sh -c 'java ")
             append(profile.recommendedJavaArgs)
-            append(" -jar minecraft-client.jar --version ${version.id} --profile ${profile.id} --user ${safeAccount} --mods ${modsSuffix}")
+            append(" -jar minecraft-client.jar --version ${version.id} --profile ${profile.id} --user ${safeAccount} --mods ${safeMods}'")
         }
     }
 }

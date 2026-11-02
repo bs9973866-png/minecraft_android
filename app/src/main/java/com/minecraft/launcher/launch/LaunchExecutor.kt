@@ -2,7 +2,7 @@ package com.minecraft.launcher.launch
 
 import com.minecraft.launcher.model.LaunchConfig
 
-data class LaunchExecutionResult(
+class LaunchExecutionResult(
     val success: Boolean,
     val message: String,
     val command: String
