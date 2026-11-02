@@ -1,6 +1,7 @@
 package com.minecraft.launcher.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.minecraft.launcher.model.Account
 import com.minecraft.launcher.model.DeviceProfile
+import com.minecraft.launcher.model.LaunchPlan
 import com.minecraft.launcher.model.MinecraftVersion
 import com.minecraft.launcher.model.Modpack
 
@@ -93,7 +95,11 @@ fun LauncherApp(viewModel: LauncherViewModel = viewModel()) {
                 launchStatus = launchStatus,
                 onLaunch = {
                     val result = viewModel.launchMinecraft()
-                    launchStatus = if (result.success) "Launch started successfully" else result.message
+                    launchStatus = if (result.success) {
+                        "Launched successfully"
+                    } else {
+                        result.message
+                    }
                     launchCommand = result.command
                 }
             )
@@ -102,19 +108,19 @@ fun LauncherApp(viewModel: LauncherViewModel = viewModel()) {
                 LauncherTab.VERSIONS -> VersionsScreen(
                     versions = state.versions,
                     selectedVersion = state.selectedVersion,
-                    onSelectVersion = { viewModel.selectVersion(it) },
+                    onSelectVersion = viewModel::selectVersion,
                     modpacks = state.modpacks
                 )
                 LauncherTab.ACCOUNTS -> AccountsScreen(
                     accounts = state.accounts,
                     selectedAccount = viewModel.activeAccount,
-                    onSelectAccount = { viewModel.selectAccount(it) }
+                    onSelectAccount = viewModel::selectAccount
                 )
                 LauncherTab.MODS -> ModsScreen(modpacks = state.modpacks)
                 LauncherTab.SETTINGS -> SettingsScreen(
                     profiles = state.deviceProfiles,
                     selectedProfile = viewModel.activeProfile,
-                    onSelectProfile = { viewModel.selectDeviceProfile(it) }
+                    onSelectProfile = viewModel::selectDeviceProfile
                 )
             }
 
@@ -148,7 +154,7 @@ private fun HeaderCard(
     selectedVersion: MinecraftVersion,
     activeAccount: Account,
     deviceProfile: DeviceProfile,
-    launchPlan: com.minecraft.launcher.model.LaunchPlan,
+    launchPlan: LaunchPlan,
     launchStatus: String,
     onLaunch: () -> Unit
 ) {
@@ -216,7 +222,9 @@ private fun VersionsScreen(
         items(versions) { version ->
             val selected = selectedVersion.id == version.id
             Card(
-                onClick = { onSelectVersion(version) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectVersion(version) },
                 colors = CardDefaults.cardColors(
                     containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                     else MaterialTheme.colorScheme.surface
@@ -272,7 +280,9 @@ private fun AccountsScreen(
         items(accounts) { account ->
             val selected = selectedAccount.id == account.id
             Card(
-                onClick = { onSelectAccount(account) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectAccount(account) },
                 colors = CardDefaults.cardColors(
                     containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                     else MaterialTheme.colorScheme.surface
@@ -329,7 +339,9 @@ private fun SettingsScreen(
         items(profiles) { profile ->
             val selected = selectedProfile.id == profile.id
             Card(
-                onClick = { onSelectProfile(profile) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectProfile(profile) },
                 colors = CardDefaults.cardColors(
                     containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                     else MaterialTheme.colorScheme.surface
@@ -348,7 +360,10 @@ private fun SettingsScreen(
 
 @Composable
 private fun ModpackItem(modpack: Modpack) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

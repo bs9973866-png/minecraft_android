@@ -9,10 +9,10 @@ This project is a mobile Minecraft launcher prototype for Android.
 - recommended modpacks
 - Java launch command generation
 - launch execution wrapper
-- custom app branding
+- app branding
 
 ## Build
-Open in Android Studio and run the app on a device or emulator.
+Open the project in Android Studio and run it on a device or emulator.
 
 ## Note
-This is a prototype launcher. It does not ship official Mojang assets or a full game runtime.
+This is a prototype launcher demo and does not ship official Mojang assets or a full game runtime.
