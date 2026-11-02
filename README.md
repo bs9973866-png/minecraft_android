@@ -1,30 +1,41 @@
-package com.minecraft.launcher
+# Minecraft Android Launcher Prototype
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.ui.graphics.Color
-import com.minecraft.launcher.ui.LauncherApp
+This repository contains an Android launcher prototype for managing Java Minecraft installs on Android devices.
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = Color(0xFF7C4DFF),
-                    secondary = Color(0xFF00C2FF),
-                    background = Color(0xFF0F1220),
-                    surface = Color(0xFF171B2C),
-                    onPrimary = Color.White,
-                    onBackground = Color.White,
-                    onSurface = Color.White
-                )
-            ) {
-                LauncherApp()
-            }
-        }
-    }
-}
+## Current direction
+
+The project is moving from a static launcher mock toward a real launcher architecture with:
+
+- version and profile selection
+- automatic modpack recommendation by version and device tier
+- Ely.by-style account flow
+- launch configuration builder for Java arguments and selected modpacks
+- device-specific optimization presets
+
+## Included foundations
+
+- launcher UI with tabbed navigation
+- version selection cards
+- account selection flow
+- optimization profile cards
+- modpack recommendations
+- launch planning logic
+- Ely auth manager prototype
+- compatibility manager for modpack selection
+- launch command builder prototype
+
+## Planned next stage
+
+1. Add a real version manifest and install manager.
+2. Add metadata checks for Fabric / Forge / NeoForge compatibility.
+3. Wire the Ely.by auth manager to a persisted token/session store.
+4. Generate and execute launch commands based on active profile and selected mods.
+5. Add a real file downloader and mod installation pipeline.
+
+## Important note
+
+This is a prototype and not an official Minecraft launcher or a redistribution of copyrighted game assets.
+
+## Build
+
+Open the project in Android Studio, let Gradle sync, and run the app on an emulator or a connected device.
