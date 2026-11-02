@@ -37,10 +37,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.minecraft.launcher.model.Account
+import com.minecraft.launcher.model.ClientMod
+import com.minecraft.launcher.model.ControlPreset
 import com.minecraft.launcher.model.DeviceProfile
 import com.minecraft.launcher.model.LaunchPlan
+import com.minecraft.launcher.model.LauncherSetupState
 import com.minecraft.launcher.model.MinecraftVersion
+import com.minecraft.launcher.model.ModLoader
 import com.minecraft.launcher.model.Modpack
+import com.minecraft.launcher.model.ResourcePack
+import com.minecraft.launcher.model.ShaderPack
 
 private enum class LauncherTab(val title: String) {
     VERSIONS("Versions"),
@@ -55,6 +61,7 @@ fun LauncherApp(viewModel: LauncherViewModel = viewModel()) {
     var selectedTab by remember { mutableStateOf(LauncherTab.VERSIONS) }
     var launchStatus by remember { mutableStateOf("Ready") }
     var launchCommand by remember { mutableStateOf(viewModel.activeLaunchConfig.commandLine) }
+    var wizardStep by remember { mutableStateOf(0) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -116,7 +123,22 @@ fun LauncherApp(viewModel: LauncherViewModel = viewModel()) {
                     selectedAccount = viewModel.activeAccount,
                     onSelectAccount = viewModel::selectAccount
                 )
-                LauncherTab.MODS -> ModsScreen(modpacks = state.modpacks)
+                LauncherTab.MODS -> ThreePromptWizard(
+                    setup = viewModel.promptState,
+                    onSelectLoader = viewModel::selectLoader,
+                    onSelectModpack = viewModel::selectModpack,
+                    onSelectMod = viewModel::toggleMod,
+                    onSelectShader = viewModel::selectShader,
+                    onSelectResourcePack = viewModel::selectResourcePack,
+                    onSelectControl = viewModel::selectControlPreset,
+                    currentStep = wizardStep,
+                    onNext = { wizardStep = (wizardStep + 1).coerceAtMost(2) },
+                    onPrevious = { wizardStep = (wizardStep - 1).coerceAtLeast(0) },
+                    onGenerate = {
+                        launchStatus = "Setup ready: ${viewModel.promptState.selectedLoader.name} + ${viewModel.promptState.selectedModpack.name} + ${viewModel.promptState.selectedShader.name}"
+                        launchCommand = viewModel.buildPreparedLaunchCommand()
+                    }
+                )
                 LauncherTab.SETTINGS -> SettingsScreen(
                     profiles = state.deviceProfiles,
                     selectedProfile = viewModel.activeProfile,
@@ -307,22 +329,6 @@ private fun AccountsScreen(
 }
 
 @Composable
-private fun ModsScreen(modpacks: List<Modpack>) {
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            Text(
-                text = "Recommended mods and modpacks",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        items(modpacks) { modpack ->
-            ModpackItem(modpack)
-        }
-    }
-}
-
-@Composable
 private fun SettingsScreen(
     profiles: List<DeviceProfile>,
     selectedProfile: DeviceProfile,
@@ -374,7 +380,7 @@ private fun ModpackItem(modpack: Modpack) {
                 Text(text = modpack.version)
             }
             Text(
-                text = modpack.compatibility,
+                text = "${modpack.source} · ${modpack.category}",
                 color = Color(0xFF9AD0FF),
                 modifier = Modifier.padding(top = 8.dp)
             )
@@ -393,3 +399,207 @@ private fun ModpackItem(modpack: Modpack) {
         }
     }
 }
+
+@Composable
+private fun ThreePromptWizard(
+    setup: LauncherSetupState,
+    onSelectLoader: (ModLoader) -> Unit,
+    onSelectModpack: (Modpack) -> Unit,
+    onSelectMod: (ClientMod) -> Unit,
+    onSelectShader: (ShaderPack) -> Unit,
+    onSelectResourcePack: (ResourcePack) -> Unit,
+    onSelectControl: (ControlPreset) -> Unit,
+    currentStep: Int,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onGenerate: () -> Unit
+) {
+    val loaders = listOf(
+        "Fabric",
+        "Forge",
+        "NeoForge",
+        "Quilt"
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = "Prompt ${currentStep + 1} / 3",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        when (currentStep) {
+            0 -> {
+                Text("1) Choose mod loader and modpack source")
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(listOf("Fabric", "Forge", "NeoForge", "Quilt")) { loaderName ->
+                        val selected = setup.selectedLoader.name == loaderName
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { 
+                                    val found = listOf(
+                                        ModLoader("fabric", "Fabric", "Modrinth", "1.20-1.21", "Fast, lightweight, best for mobile-friendly builds"),
+                                        ModLoader("forge", "Forge", "CurseForge", "1.16-1.19", "Classic mod support and broad compatibility"),
+                                        ModLoader("neoforge", "NeoForge", "CurseForge", "1.20+", "Modern Forge branch with improved performance"),
+                                        ModLoader("quilt", "Quilt", "Modrinth", "1.20+", "Modern Fabric-like ecosystem with modded stability")
+                                    ).first { it.name == loaderName }
+                                    onSelectLoader(found)
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Text(
+                                text = loaderName,
+                                modifier = Modifier.padding(16.dp),
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                Text("Recommended modpacks")
+                val modpacks = listOf(
+                    Modpack("fabulously-optimized", "Fabulously Optimized", "1.20.4", "Fabric", "High FPS and stable performance for mid-tier phones", 420000, true, "Modrinth", "Optimization"),
+                    Modpack("create-immersive", "Create Immersive", "1.19.2", "Forge", "Creative automation pack with strong support", 190000, false, "CurseForge", "Automation"),
+                    Modpack("rift-essentials", "Rift Essentials", "1.21.1", "Fabric", "Performance-first pack with QoL improvements", 94000, false, "Modrinth", "Performance")
+                )
+                modpacks.forEach { modpack ->
+                    val selected = setup.selectedModpack.id == modpack.id
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectModpack(modpack) }
+                            .padding(top = 8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(text = modpack.name, fontWeight = FontWeight.Bold)
+                            Text(text = "${modpack.source} · ${modpack.category}")
+                        }
+                    }
+                }
+            }
+            1 -> {
+                Text("2) Choose mods, shaders and resource packs")
+                Text("Recommended mods")
+                setup.selectedMods.forEach { mod ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectMod(mod) }
+                            .padding(top = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(mod.name, fontWeight = FontWeight.Bold)
+                            Text("${mod.source} · ${mod.category} · ${mod.version}")
+                        }
+                    }
+                }
+
+                val shaders = listOf(
+                    ShaderPack("sildurs", "Sildur's Vibrant Shaders", "Modrinth", "1.20.4", "Balanced quality and performance", true),
+                    ShaderPack("complementary", "Complementary Shaders", "Modrinth", "1.20.4", "High-quality visuals", false),
+                    ShaderPack("bsl", "BSL Shaders", "CurseForge", "1.20.4", "Very nice visuals", false)
+                )
+
+                Text("Shaders", modifier = Modifier.padding(top = 12.dp))
+                shaders.forEach { shader ->
+                    val selected = setup.selectedShader.id == shader.id
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectShader(shader) }
+                            .padding(top = 6.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(shader.name, fontWeight = FontWeight.Bold)
+                            Text(shader.description)
+                        }
+                    }
+                }
+
+                val resourcePacks = listOf(
+                    ResourcePack("vanilla-plus", "Vanilla+", "Modrinth", "1.20.4", "Clean visual upgrade without major style changes", true),
+                    ResourcePack("retina", "Retina", "CurseForge", "1.20.4", "High-detail textures", false),
+                    ResourcePack("minimal-ui", "Minimal UI Pack", "Modrinth", "1.20.4", "Cleaner HUD", false)
+                )
+                Text("Resource packs", modifier = Modifier.padding(top = 12.dp))
+                resourcePacks.forEach { pack ->
+                    val selected = setup.selectedResourcePack.id == pack.id
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectResourcePack(pack) }
+                            .padding(top = 6.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(pack.name, fontWeight = FontWeight.Bold)
+                            Text(pack.description)
+                        }
+                    }
+                }
+            }
+            2 -> {
+                Text("3) Customize controls")
+                val controls = listOf(
+                    ControlPreset("touch-classic", "Classic Touch", "Left thumb + right thumb + quick actions", "Simple and familiar mobile layout", true),
+                    ControlPreset("touch-advanced", "Advanced Hybrid", "Expanded hotkeys + touchpad + action slots", "Best for PvP and building"),
+                    ControlPreset("console", "Console Style", "Dual thumbsticks + quick inventory buttons", "More gamepad-like mobile layout")
+                )
+                controls.forEach { control ->
+                    val selected = setup.selectedControlPreset.id == control.id
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectControl(control) }
+                            .padding(top = 8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(control.name, fontWeight = FontWeight.Bold)
+                            Text(control.layout)
+                            Text(control.description, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            if (currentStep > 0) {
+                Button(onClick = onPrevious) {
+                    Text("Back")
+                }
+            } else {
+                Text("")
+            }
+
+            if (currentStep < 2) {
+                Button(onClick = onNext) {
+                    Text("Next")
+                }
+            } else {
+                Button(onClick = onGenerate) {
+                    Text("Generate setup")
+                }
+            }
+        }
+    }
+}
+
