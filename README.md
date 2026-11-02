@@ -1,43 +1,52 @@
 # Minecraft Android Launcher Prototype
 
-A lightweight Android launcher prototype for managing Java Minecraft installs, modpacks, launcher profiles, Android device optimization, and account presets.
+This repository contains an Android launcher prototype for managing Java Minecraft installs on Android devices. The project is meant to be a strong foundation for a custom launcher UI, profile handling, modpack recommendations, and device-specific performance tuning.
 
-This project is intended as a starting point for a custom launcher UI and architecture. It does not bundle or redistribute Minecraft assets or official game clients.
+## Current features
 
-## Included
+- version picker for Java-capable Minecraft builds
+- account cards for Ely.by-style login and offline profiles
+- modpack recommendations tied to selected version
+- optimization profiles for weak / mid / high-end phones
+- Material 3 launcher interface with tabs for versions, accounts, mods, and settings
 
-- version selection for Java Minecraft builds
-- launcher profile management
-- account entries for offline and Ely.by styled login flow
-- modpack recommendations by selected version
-- optimization presets for low / mid / high-end Android devices
-- Material 3 UI scaffold for a future full launcher app
+## Key idea
 
-## Project structure
+The app focuses on a launcher experience rather than a game client itself. It is designed to evolve toward:
 
-- `app/src/main/java/com/minecraft/launcher/` – app code
-- `app/src/main/res/` – resources and strings
-- `README.md` – project overview
+- version downloads and installs
+- mod loader detection (Fabric / Forge / NeoForge)
+- automatic modpack resolution and compatibility checks
+- Java runtime and memory tuning per device
+- launch configuration based on phone hardware
 
-## Android setup
+## Important note
 
-Open this folder in Android Studio and let Gradle sync. Then run the app on a connected device or emulator.
+This is a prototype and not an official Minecraft launcher or a redistribution of game assets. It does not ship game binaries, official client code, or copyrighted content beyond basic UI scaffolding and mock data.
 
-## Notes
+## Repository structure
 
-This is a prototype, not a complete proprietary launcher. For a production-grade launcher, you would add:
+- `app/src/main/java/com/minecraft/launcher` — launcher logic and screens
+- `app/src/main/res/values` — strings and theme resources
+- `app/build.gradle.kts` — Android app module setup
+- `README.md` — overview and project notes
 
-- a real account auth layer,
-- download and install logic for selected client versions,
-- Java runtime management,
-- modpack validation,
-- safe file extraction and patching,
-- per-device launch optimization.
+## Next development areas
 
-## Recommended next steps
+1. Version manifest download and installation logic
+2. Fabric / Forge / NeoForge compatibility engine
+3. Ely.by client auth flow
+4. Auto-install and patching logic for recommended modpacks
+5. Real Java launch command builder with memory/gpu flags
 
-1. Add version manifest fetcher and download manager.
-2. Add Fabric / Forge / NeoForge adapter logic.
-3. Add Ely.by OAuth flow and token storage.
-4. Add a real game process launcher with JVM flags.
-5. Add modpack compatibility validation before launch.
+## Build
+
+Open the project in Android Studio and sync Gradle. Then run the app on an emulator or connected Android device.
+
+## Roadmap
+
+- MVP launcher UI
+- profile and account model
+- modpack recommendation engine
+- device profile optimization
+- real client install and launch pipeline

@@ -50,7 +50,8 @@ class LauncherRepository {
             version = "1.20.4",
             compatibility = "Fabric",
             description = "High FPS and stable performance for mid-tier phones",
-            downloads = 420000
+            downloads = 420000,
+            recommended = true
         ),
         Modpack(
             id = "create-immersive",
@@ -67,6 +68,14 @@ class LauncherRepository {
             compatibility = "Fabric",
             description = "Performance-first profile with QoL improvements",
             downloads = 94000
+        ),
+        Modpack(
+            id = "neoforge-arcade",
+            name = "NeoForge Arcade",
+            version = "1.16.5",
+            compatibility = "NeoForge",
+            description = "Optimized for older devices and lightweight modpacks",
+            downloads = 62000
         )
     )
 

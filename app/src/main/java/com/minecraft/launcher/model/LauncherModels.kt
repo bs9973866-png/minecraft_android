@@ -14,7 +14,8 @@ data class Modpack(
     val version: String,
     val compatibility: String,
     val description: String,
-    val downloads: Int
+    val downloads: Int,
+    val recommended: Boolean = false
 )
 
 data class Account(
@@ -34,6 +35,7 @@ data class DeviceProfile(
 )
 
 data class LauncherUiState(
+    val versions: List<MinecraftVersion>,
     val selectedVersion: MinecraftVersion,
     val accounts: List<Account>,
     val modpacks: List<Modpack>,

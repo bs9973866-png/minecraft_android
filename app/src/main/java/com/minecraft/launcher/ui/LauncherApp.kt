@@ -25,8 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,7 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.minecraft.launcher.data.LauncherRepository
 import com.minecraft.launcher.model.Account
 import com.minecraft.launcher.model.DeviceProfile
 import com.minecraft.launcher.model.MinecraftVersion
@@ -52,17 +50,27 @@ private enum class LauncherTab(val title: String) {
 }
 
 @Composable
-fun LauncherApp(viewModel: LauncherViewModel = viewModel()) {
-    val state = viewModel.uiState
+fun LauncherApp() {
+    val repository = LauncherRepository()
+    val versions = repository.getVersions()
+    val accounts = repository.getAccounts()
+    val modpacks = repository.getModpacks()
+    val profiles = repository.getDeviceProfiles()
+
+    val defaultVersion = versions.first { it.recommended }
+    val defaultAccount = accounts.first { it.isActive }
+    val defaultProfile = profiles.first()
+
     var selectedTab by remember { mutableStateOf(LauncherTab.VERSIONS) }
+    var selectedVersion by remember { mutableStateOf(defaultVersion) }
+    var selectedProfile by remember { mutableStateOf(defaultProfile) }
+    var selectedAccount by remember { mutableStateOf(defaultAccount) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                 LauncherTab.entries.forEach { tab ->
                     NavigationBarItem(
                         selected = selectedTab == tab,
@@ -90,16 +98,29 @@ fun LauncherApp(viewModel: LauncherViewModel = viewModel()) {
                 .padding(16.dp)
         ) {
             HeaderCard(
-                selectedVersion = state.selectedVersion,
-                activeAccount = state.accounts.firstOrNull { it.isActive },
-                deviceProfile = state.deviceProfiles.first()
+                selectedVersion = selectedVersion,
+                activeAccount = selectedAccount,
+                deviceProfile = selectedProfile
             )
 
             when (selectedTab) {
-                LauncherTab.VERSIONS -> VersionsScreen(state.selectedVersion, state.modpacks)
-                LauncherTab.ACCOUNTS -> AccountsScreen(state.accounts)
-                LauncherTab.MODS -> ModsScreen(state.modpacks)
-                LauncherTab.SETTINGS -> SettingsScreen(state.deviceProfiles)
+                LauncherTab.VERSIONS -> VersionsScreen(
+                    versions = versions,
+                    selectedVersion = selectedVersion,
+                    onSelectVersion = { selectedVersion = it },
+                    modpacks = modpacks
+                )
+                LauncherTab.ACCOUNTS -> AccountsScreen(
+                    accounts = accounts,
+                    selectedAccount = selectedAccount,
+                    onSelectAccount = { selectedAccount = it }
+                )
+                LauncherTab.MODS -> ModsScreen(modpacks = modpacks)
+                LauncherTab.SETTINGS -> SettingsScreen(
+                    profiles = profiles,
+                    selectedProfile = selectedProfile,
+                    onSelectProfile = { selectedProfile = it }
+                )
             }
         }
     }
@@ -108,7 +129,7 @@ fun LauncherApp(viewModel: LauncherViewModel = viewModel()) {
 @Composable
 private fun HeaderCard(
     selectedVersion: MinecraftVersion,
-    activeAccount: Account?,
+    activeAccount: Account,
     deviceProfile: DeviceProfile
 ) {
     Card(
@@ -117,11 +138,7 @@ private fun HeaderCard(
             .padding(bottom = 16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = "Minecraft launcher",
                 style = MaterialTheme.typography.titleLarge,
@@ -138,8 +155,8 @@ private fun HeaderCard(
                     .padding(top = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "Account: ${activeAccount?.username ?: "None"}")
-                Text(text = "Device: ${deviceProfile.name}")
+                Text(text = "Account: ${activeAccount.username}")
+                Text(text = "Profile: ${deviceProfile.name}")
             }
             Button(
                 onClick = { },
@@ -153,7 +170,12 @@ private fun HeaderCard(
 }
 
 @Composable
-private fun VersionsScreen(selectedVersion: MinecraftVersion, modpacks: List<Modpack>) {
+private fun VersionsScreen(
+    versions: List<MinecraftVersion>,
+    selectedVersion: MinecraftVersion,
+    onSelectVersion: (MinecraftVersion) -> Unit,
+    modpacks: List<Modpack>
+) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Text(
@@ -162,23 +184,36 @@ private fun VersionsScreen(selectedVersion: MinecraftVersion, modpacks: List<Mod
                 fontWeight = FontWeight.Bold
             )
         }
-        item {
+        items(versions) { version ->
+            val selected = selectedVersion.id == version.id
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                onClick = { onSelectVersion(version) },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    else MaterialTheme.colorScheme.surface
+                )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = selectedVersion.label, fontWeight = FontWeight.Bold)
-                    Text(text = selectedVersion.description, modifier = Modifier.padding(top = 8.dp))
-                    Text(
-                        text = "Version type: ${selectedVersion.type}",
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = version.label, fontWeight = FontWeight.Bold)
+                        if (version.recommended) {
+                            Text(text = "Recommended", color = Color(0xFF9AD0FF))
+                        }
+                    }
+                    Text(text = version.type, modifier = Modifier.padding(top = 6.dp))
+                    Text(text = version.description, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }
+
         item {
             Divider(modifier = Modifier.padding(vertical = 8.dp))
         }
+
         item {
             Text(
                 text = "Auto-installed modpacks",
@@ -186,6 +221,7 @@ private fun VersionsScreen(selectedVersion: MinecraftVersion, modpacks: List<Mod
                 fontWeight = FontWeight.Bold
             )
         }
+
         items(modpacks) { modpack ->
             ModpackItem(modpack)
         }
@@ -193,7 +229,11 @@ private fun VersionsScreen(selectedVersion: MinecraftVersion, modpacks: List<Mod
 }
 
 @Composable
-private fun AccountsScreen(accounts: List<Account>) {
+private fun AccountsScreen(
+    accounts: List<Account>,
+    selectedAccount: Account,
+    onSelectAccount: (Account) -> Unit
+) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Text(
@@ -203,8 +243,13 @@ private fun AccountsScreen(accounts: List<Account>) {
             )
         }
         items(accounts) { account ->
+            val selected = selectedAccount.id == account.id
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                onClick = { onSelectAccount(account) },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    else MaterialTheme.colorScheme.surface
+                )
             ) {
                 Row(
                     modifier = Modifier
@@ -229,7 +274,7 @@ private fun ModsScreen(modpacks: List<Modpack>) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Text(
-                text = "Recommended mods",
+                text = "Recommended mods and modpacks",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -241,7 +286,11 @@ private fun ModsScreen(modpacks: List<Modpack>) {
 }
 
 @Composable
-private fun SettingsScreen(deviceProfiles: List<DeviceProfile>) {
+private fun SettingsScreen(
+    profiles: List<DeviceProfile>,
+    selectedProfile: DeviceProfile,
+    onSelectProfile: (DeviceProfile) -> Unit
+) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Text(
@@ -250,15 +299,20 @@ private fun SettingsScreen(deviceProfiles: List<DeviceProfile>) {
                 fontWeight = FontWeight.Bold
             )
         }
-        items(deviceProfiles) { profile ->
+        items(profiles) { profile ->
+            val selected = selectedProfile.id == profile.id
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                onClick = { onSelectProfile(profile) },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    else MaterialTheme.colorScheme.surface
+                )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(text = profile.name, fontWeight = FontWeight.Bold)
-                    Text(text = "Memory: ${profile.memoryLimitMb} MB")
-                    Text(text = "Render: ${profile.renderQuality}")
-                    Text(text = "JVM: ${profile.recommendedJavaArgs}")
+                    Text(text = "Memory: ${profile.memoryLimitMb} MB", modifier = Modifier.padding(top = 6.dp))
+                    Text(text = "Render: ${profile.renderQuality}", modifier = Modifier.padding(top = 2.dp))
+                    Text(text = "JVM: ${profile.recommendedJavaArgs}", modifier = Modifier.padding(top = 2.dp))
                 }
             }
         }
@@ -267,9 +321,7 @@ private fun SettingsScreen(deviceProfiles: List<DeviceProfile>) {
 
 @Composable
 private fun ModpackItem(modpack: Modpack) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -289,6 +341,13 @@ private fun ModpackItem(modpack: Modpack) {
                 text = "Downloads: ${modpack.downloads}",
                 modifier = Modifier.padding(top = 8.dp)
             )
+            if (modpack.recommended) {
+                Text(
+                    text = "Auto-selected for your current version",
+                    modifier = Modifier.padding(top = 8.dp),
+                    color = Color(0xFF7CFFB2)
+                )
+            }
         }
     }
 }
