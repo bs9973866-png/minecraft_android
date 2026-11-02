@@ -46,6 +46,17 @@ data class LaunchPlan(
     val safeToLaunch: Boolean = true
 )
 
+data class LaunchConfig(
+    val version: MinecraftVersion,
+    val account: Account,
+    val deviceProfile: DeviceProfile,
+    val modpackNames: List<String>,
+    val javaCommand: String,
+    val jvmArgs: String,
+    val commandLine: String,
+    val safeToLaunch: Boolean = true
+)
+
 data class LauncherUiState(
     val versions: List<MinecraftVersion>,
     val selectedVersion: MinecraftVersion,
