@@ -1,0 +1,15 @@
+# .gitignore
+.idea/
+.gradle/
+/local.properties
+/.kotlin/
+/build/
+**/build/
+*.iml
+*.apk
+*.aab
+*.jks
+*.keystore
+*.log
+.DS_Store
+Thumbs.db
